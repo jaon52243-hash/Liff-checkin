@@ -24,9 +24,7 @@
 </head>
 <body>
     <div class="card">
-        <div id="loading" class="loading-screen">
-            กำลังโหลดข้อมูลระบบ...
-        </div>
+        <div id="loading" class="loading-screen">กำลังโหลดข้อมูลระบบ...</div>
         
         <div id="app-content" style="display: none;">
             <img id="user-img" class="avatar" src="" alt="Profile">
@@ -49,7 +47,7 @@
 
     <script>
         const MY_LIFF_ID = "2011831668-svA4ZJ08";
-        const GOOGLE_SCRIPT_URL ="https://script.google.com/macros/s/AKfycbzrP046SFzKtKyEhT_2-9WQPc0KsiRXi5YKmKppgXkF-LyNa7XQN5nGRkYNUdOQY3QN/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzrP046SFzKtKyEhT_2-9WQPc0KsiRXi5YKmKppgXkF-LyNa7XQN5nGRkYNUdOQY3QN/exec";
 
         let currentUserId = "";
         let currentUserName = "";
@@ -57,6 +55,7 @@
         async function initLiff() {
             try {
                 await liff.init({ liffId: MY_LIFF_ID });
+                
                 if (!liff.isLoggedIn()) {
                     liff.login();
                     return;
@@ -73,7 +72,12 @@
 
             } catch (err) {
                 console.error("LIFF Error:", err);
-                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลด LIFF";
+                // กรณีรันเทสบนเบราว์เซอร์คอมพิวเตอร์ทั่วไปที่ไม่มี LIFF SDK
+                currentUserId = "test_user_001";
+                currentUserName = "ทดสอบระบบ";
+                document.getElementById('user-name').innerText = currentUserName;
+                document.getElementById('user-img').src = 'https://via.placeholder.com/90';
+                await callApi("get");
             }
         }
 
