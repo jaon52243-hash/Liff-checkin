@@ -43,9 +43,11 @@
 
     <script>
         const MY_LIFF_ID = "2011831668-svA4ZJ08";
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoY24QbuXUvxUVRzkDsXyNmgnGu5P-b2xwHW11H6L8IkNu8ywpMgNtDc6r4wDtDPM0vA/exec"; 
+        // อัปเดต Web App URL ตัวใหม่ล่าสุดเรียบร้อยแล้ว
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwcNaoI4fnSKK4kqBrGPDKYf9oB0145Gn9c4DDbeS4VytLAvvZMyerPP1CXtHc_RuVfog/exec"; 
 
         let currentUserId = "";
+        let currentAction = "get";
 
         async function initLiff() {
             try {
@@ -60,62 +62,54 @@
                 document.getElementById('user-name').innerText = profile.displayName;
                 document.getElementById('user-img').src = profile.pictureUrl || 'https://via.placeholder.com/80';
 
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('app-content').style.display = 'block';
-
-                await fetchSheetData("get");
+                loadData("get");
 
             } catch (err) {
                 console.error("LIFF Error:", err);
-                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลด LIFF";
+                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
             }
         }
 
-        function fetchSheetData(action) {
+        function loadData(action) {
+            currentAction = action;
             const btn = document.getElementById('btn-action');
             btn.disabled = true;
             btn.innerText = action === "checkin" ? "กำลังบันทึก..." : "กำลังโหลด...";
 
+            const oldScript = document.getElementById('jsonp-script');
+            if (oldScript) oldScript.remove();
+
             const script = document.createElement('script');
-            const callbackName = 'handleDataResponse_' + Date.now();
-            
-            window[callbackName] = function(data) {
-                if (data && data.success) {
-                    document.getElementById('checkin-count').innerText = data.checkinCount;
-                    document.getElementById('cycle-count').innerText = data.cycleCount;
-
-                    const percent = Math.min((data.checkinCount / 10) * 100, 100);
-                    document.getElementById('progress-fill').style.width = percent + "%";
-
-                    if (action === "checkin") {
-                        alert(data.message || "เช็คอินเรียบร้อย!");
-                    }
-                } else {
-                    alert("ไม่สามารถดึงข้อมูลได้");
-                }
-                btn.disabled = false;
-                btn.innerText = "📍 กดเช็คอิน";
-                delete window[callbackName];
-                if (document.body.contains(script)) {
-                    document.body.removeChild(script);
-                }
-            };
-
-            script.src = `${GOOGLE_SCRIPT_URL}?userId=${encodeURIComponent(currentUserId)}&action=${action}&callback=${callbackName}`;
-            script.onerror = function() {
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheets");
-                btn.disabled = false;
-                btn.innerText = "📍 กดเช็คอิน";
-                if (document.body.contains(script)) {
-                    document.body.removeChild(script);
-                }
-            };
-
+            script.id = 'jsonp-script';
+            script.src = `${GOOGLE_SCRIPT_URL}?userId=${currentUserId}&action=${action}&callback=handleResponse`;
             document.body.appendChild(script);
         }
 
+        function handleResponse(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+
+            const btn = document.getElementById('btn-action');
+            btn.disabled = false;
+            btn.innerText = "📍 กดเช็คอิน";
+
+            if (data.success) {
+                document.getElementById('checkin-count').innerText = data.checkinCount;
+                document.getElementById('cycle-count').innerText = data.cycleCount;
+
+                const percent = (data.checkinCount / 10) * 100;
+                document.getElementById('progress-fill').style.width = percent + "%";
+
+                if (currentAction === "checkin" && data.message) {
+                    alert(data.message);
+                }
+            } else {
+                alert("เกิดข้อผิดพลาด: " + (data.message || "ไม่สามารถดึงข้อมูลได้"));
+            }
+        }
+
         function doCheckin() {
-            fetchSheetData("checkin");
+            loadData("checkin");
         }
 
         initLiff();
