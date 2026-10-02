@@ -60,47 +60,59 @@
                 document.getElementById('user-name').innerText = profile.displayName;
                 document.getElementById('user-img').src = profile.pictureUrl || 'https://via.placeholder.com/80';
 
-                await loadData("get");
-
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('app-content').style.display = 'block';
 
+                await fetchSheetData("get");
+
             } catch (err) {
                 console.error("LIFF Error:", err);
-                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
+                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลด LIFF";
             }
         }
 
-        async function loadData(action) {
-            try {
-                const btn = document.getElementById('btn-action');
-                btn.disabled = true;
-                btn.innerText = "กำลังบันทึก...";
+        function fetchSheetData(action) {
+            const btn = document.getElementById('btn-action');
+            btn.disabled = true;
+            btn.innerText = action === "checkin" ? "กำลังบันทึก..." : "กำลังโหลด...";
 
-                const response = await fetch(`${GOOGLE_SCRIPT_URL}?userId=${currentUserId}&action=${action}`);
-                const data = await response.json();
-
-                if (data.success) {
+            // ใช้ Script Tag Trick เพื่อข้ามการติด CORS บนมือถือ
+            const script = document.createElement('script');
+            const callbackName = 'handleDataResponse_' + Date.now();
+            
+            window[callbackName] = function(data) {
+                if (data && data.success) {
                     document.getElementById('checkin-count').innerText = data.checkinCount;
                     document.getElementById('cycle-count').innerText = data.cycleCount;
 
-                    const percent = (data.checkinCount / 10) * 100;
+                    const percent = Math.min((data.checkinCount / 10) * 100, 100);
                     document.getElementById('progress-fill').style.width = percent + "%";
 
                     if (action === "checkin") {
-                        alert(data.message);
+                        alert(data.message || "เช็คอินเรียบร้อย!");
                     }
+                } else {
+                    alert("ไม่สามารถดึงข้อมูลได้");
                 }
                 btn.disabled = false;
                 btn.innerText = "📍 กดเช็คอิน";
-            } catch (error) {
-                console.error("Error:", error);
-                alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
-            }
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+
+            script.src = `${GOOGLE_SCRIPT_URL}?userId=${encodeURIComponent(currentUserId)}&action=${action}&callback=${callbackName}`;
+            script.onerror = function() {
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheets");
+                btn.disabled = false;
+                btn.innerText = "📍 กดเช็คอิน";
+                document.body.removeChild(script);
+            };
+
+            document.body.appendChild(script);
         }
 
         function doCheckin() {
-            loadData("checkin");
+            fetchSheetData("checkin");
         }
 
         initLiff();
