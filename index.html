@@ -2,35 +2,41 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ระบบเช็คอินสะสมแต้ม</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f0f3f8; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 360px; margin: 20px auto; }
-        .avatar { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 10px; }
-        .count-box { font-size: 48px; color: #06C755; font-weight: bold; margin: 10px 0; }
-        .cycle-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 16px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 15px; }
-        .btn-checkin { background-color: #06C755; color: white; border: none; padding: 14px 28px; font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; margin-top: 15px; }
-        .btn-checkin:disabled { background-color: #ccc; }
-        .progress-bar { background: #eee; border-radius: 10px; height: 12px; overflow: hidden; margin: 15px 0; }
-        .progress-fill { background: #06C755; height: 100%; width: 0%; transition: width 0.3s ease; }
+        * { box-sizing: border-box; font-family: 'Kanit', sans-serif; margin: 0; padding: 0; }
+        body { background: #f0f4f8; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: #ffffff; border-radius: 24px; padding: 30px 24px; width: 100%; max-width: 380px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); text-align: center; }
+        .avatar { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .user-name { font-size: 22px; font-weight: 600; color: #2c3e50; margin-bottom: 12px; }
+        .cycle-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 18px; border-radius: 50px; font-size: 14px; font-weight: 500; display: inline-block; margin-bottom: 20px; }
+        .count-label { color: #7f8c8d; font-size: 14px; margin-bottom: 5px; }
+        .count-box { font-size: 52px; font-weight: bold; color: #06C755; line-height: 1.1; margin-bottom: 15px; }
+        .progress-bar { background: #edf2f7; border-radius: 10px; height: 10px; overflow: hidden; margin-bottom: 25px; }
+        .progress-fill { background: #06C755; height: 100%; width: 0%; border-radius: 10px; transition: width 0.4s ease; }
+        .btn-checkin { background-color: #06C755; color: white; border: none; padding: 16px; font-size: 18px; font-weight: 600; border-radius: 16px; cursor: pointer; width: 100%; box-shadow: 0 6px 15px rgba(6, 199, 85, 0.3); }
+        .btn-checkin:disabled { background-color: #cbd5e1; box-shadow: none; cursor: not-allowed; }
+        .loading-screen { padding: 40px 0; color: #7f8c8d; font-size: 16px; }
     </style>
 </head>
 <body>
-
     <div class="card">
-        <div id="loading">กำลังโหลดข้อมูล...</div>
+        <div id="loading" class="loading-screen">
+            กำลังโหลดข้อมูลระบบ...
+        </div>
         
         <div id="app-content" style="display: none;">
             <img id="user-img" class="avatar" src="" alt="Profile">
-            <div id="user-name" style="font-weight: bold; font-size: 18px;"></div>
+            <div id="user-name" class="user-name">-</div>
             
-            <div style="margin-top: 15px;">
+            <div>
                 <span class="cycle-badge">สะสมครบแล้ว: <b id="cycle-count">0</b> รอบ</span>
             </div>
 
-            <div style="color: #666; font-size: 14px;">จำนวนเช็คอินรอบปัจจุบัน</div>
+            <div class="count-label">จำนวนเช็คอินรอบปัจจุบัน</div>
             <div class="count-box"><span id="checkin-count">0</span> / 10</div>
 
             <div class="progress-bar">
@@ -43,11 +49,10 @@
 
     <script>
         const MY_LIFF_ID = "2011831668-svA4ZJ08";
-        // อัปเดต Web App URL ตัวใหม่ล่าสุดเรียบร้อยแล้ว
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwcNaoI4fnSKK4kqBrGPDKYf9oB0145Gn9c4DDbeS4VytLAvvZMyerPP1CXtHc_RuVfog/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwcNaoI4fnSKK4kqBrGPDKYf9oB0145Gn9c4DDbeS4VytLAvvZMyerPP1CXtHc_RuVfog/exec"; 
 
         let currentUserId = "";
-        let currentAction = "get";
+        let currentUserName = "";
 
         async function initLiff() {
             try {
@@ -59,57 +64,58 @@
 
                 const profile = await liff.getProfile();
                 currentUserId = profile.userId;
-                document.getElementById('user-name').innerText = profile.displayName;
-                document.getElementById('user-img').src = profile.pictureUrl || 'https://via.placeholder.com/80';
+                currentUserName = profile.displayName;
+                
+                document.getElementById('user-name').innerText = currentUserName;
+                document.getElementById('user-img').src = profile.pictureUrl || 'https://via.placeholder.com/90';
 
-                loadData("get");
+                await callApi("get");
 
             } catch (err) {
                 console.error("LIFF Error:", err);
-                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
+                document.getElementById('loading').innerText = "เกิดข้อผิดพลาดในการโหลด LIFF";
             }
         }
 
-        function loadData(action) {
-            currentAction = action;
+        async function callApi(action) {
             const btn = document.getElementById('btn-action');
             btn.disabled = true;
             btn.innerText = action === "checkin" ? "กำลังบันทึก..." : "กำลังโหลด...";
 
-            const oldScript = document.getElementById('jsonp-script');
-            if (oldScript) oldScript.remove();
+            try {
+                const targetUrl = `${GOOGLE_SCRIPT_URL}?userId=${encodeURIComponent(currentUserId)}&name=${encodeURIComponent(currentUserName)}&action=${action}`;
+                const response = await fetch(targetUrl);
+                const data = await response.json();
 
-            const script = document.createElement('script');
-            script.id = 'jsonp-script';
-            script.src = `${GOOGLE_SCRIPT_URL}?userId=${currentUserId}&action=${action}&callback=handleResponse`;
-            document.body.appendChild(script);
-        }
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
 
-        function handleResponse(data) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('app-content').style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = "📍 กดเช็คอิน";
 
-            const btn = document.getElementById('btn-action');
-            btn.disabled = false;
-            btn.innerText = "📍 กดเช็คอิน";
+                if (data && data.success) {
+                    document.getElementById('checkin-count').innerText = data.checkinCount;
+                    document.getElementById('cycle-count').innerText = data.cycleCount;
 
-            if (data.success) {
-                document.getElementById('checkin-count').innerText = data.checkinCount;
-                document.getElementById('cycle-count').innerText = data.cycleCount;
+                    const percent = (data.checkinCount / 10) * 100;
+                    document.getElementById('progress-fill').style.width = percent + "%";
 
-                const percent = (data.checkinCount / 10) * 100;
-                document.getElementById('progress-fill').style.width = percent + "%";
-
-                if (currentAction === "checkin" && data.message) {
-                    alert(data.message);
+                    if (action === "checkin" && data.message) {
+                        alert(data.message);
+                    }
+                } else {
+                    alert("เกิดข้อผิดพลาด: " + (data.message || "ไม่สามารถดึงข้อมูลได้"));
                 }
-            } else {
-                alert("เกิดข้อผิดพลาด: " + (data.message || "ไม่สามารถดึงข้อมูลได้"));
+            } catch (err) {
+                console.error("API Error:", err);
+                alert("ไม่สามารถเชื่อมต่อกับ Google Apps Script ได้");
+                btn.disabled = false;
+                btn.innerText = "📍 กดเช็คอิน";
             }
         }
 
         function doCheckin() {
-            loadData("checkin");
+            callApi("checkin");
         }
 
         initLiff();
